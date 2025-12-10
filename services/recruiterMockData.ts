@@ -12,6 +12,16 @@ export interface TranscriptItem {
   sentiment: 'Positive' | 'Neutral' | 'Negative';
 }
 
+export interface CandidateRequest {
+  id: string;
+  candidateName: string;
+  candidateAvatar: string;
+  role: string;
+  requestDate: string;
+  status: 'Pending' | 'Accepted' | 'Declined';
+  message: string;
+}
+
 export interface CandidateApplication {
   id: string;
   candidateName: string;
@@ -66,6 +76,27 @@ export const MOCK_RECRUITER_STATS: RecruiterStats = {
   pendingReviews: 8,
   upcomingInterviews: 12
 };
+
+export const MOCK_REQUESTS: CandidateRequest[] = [
+  {
+    id: 'req-1',
+    candidateName: 'Jordan Lee',
+    candidateAvatar: 'https://picsum.photos/106/106',
+    role: 'Senior React Engineer',
+    requestDate: '2023-10-28',
+    status: 'Pending',
+    message: 'I have completed the technical assessment and would love to schedule a follow-up interview.'
+  },
+  {
+    id: 'req-2',
+    candidateName: 'Casey Smith',
+    candidateAvatar: 'https://picsum.photos/107/107',
+    role: 'Product Designer',
+    requestDate: '2023-10-29',
+    status: 'Pending',
+    message: 'Requesting an interview to discuss my portfolio.'
+  }
+];
 
 export const MOCK_RECRUITER_JOBS: RecruiterJob[] = [
   {

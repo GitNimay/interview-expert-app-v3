@@ -19,6 +19,7 @@ import { RecruiterDashboard } from './pages/recruiter/RecruiterDashboard';
 import { RecruiterJobsPage } from './pages/recruiter/RecruiterJobsPage';
 import { RecruiterSettingsPage } from './pages/recruiter/RecruiterSettingsPage';
 import { RecruiterCandidatesPage } from './pages/recruiter/RecruiterCandidatesPage';
+import { RecruiterRequestsPage } from './pages/recruiter/RecruiterRequestsPage';
 
 // Admin Pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
@@ -49,6 +50,7 @@ function App() {
         {/* Recruiter Routes */}
         <Route path="/recruiter" element={<RecruiterLayout />}>
            <Route index element={<RecruiterDashboard />} />
+           <Route path="requests" element={<RecruiterRequestsPage />} />
            <Route path="jobs" element={<RecruiterJobsPage />} />
            <Route path="candidates" element={<RecruiterCandidatesPage />} />
            <Route path="settings" element={<RecruiterSettingsPage />} />

@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Briefcase, Settings, LogOut, Menu, X, Bell, Search } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, Settings, LogOut, Menu, X, Bell, Inbox } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/recruiter' },
+    { icon: Inbox, label: 'Requests', path: '/recruiter/requests' },
     { icon: Briefcase, label: 'Jobs', path: '/recruiter/jobs' },
     { icon: Users, label: 'Candidates', path: '/recruiter/candidates' },
     { icon: Settings, label: 'Settings', path: '/recruiter/settings' },

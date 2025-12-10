@@ -95,7 +95,9 @@ export const RecruiterDashboard = () => {
                             {candidate.scores.overall}
                           </span>
                           {candidate.flags && candidate.flags.severity === 'High' && (
-                            <AlertTriangle className="w-4 h-4 text-red-500" title="High Suspicion Flag" />
+                            <span title="High Suspicion Flag">
+                              <AlertTriangle className="w-4 h-4 text-red-500" />
+                            </span>
                           )}
                         </div>
                       ) : (

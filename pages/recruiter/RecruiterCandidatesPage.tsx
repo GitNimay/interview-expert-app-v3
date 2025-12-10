@@ -1,19 +1,14 @@
-import React, { useState, useRef } from 'react';
-import { Search, Plus, Filter, MoreVertical, X, CheckCircle2, XCircle, Clock, Play, AlertTriangle, ChevronRight, Mail, FileText, Sparkles, LayoutDashboard, BrainCircuit, UserCheck, MessageSquare, Bot, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Filter, X, CheckCircle2, XCircle, Clock, Play, AlertTriangle, ChevronRight, Mail, FileText, Sparkles, User, MessageSquare, Send, Paperclip } from 'lucide-react';
 import { MOCK_CANDIDATES, MOCK_RECRUITER_JOBS, CandidateApplication } from '../../services/recruiterMockData';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenAI } from "@google/genai";
 
 export const RecruiterCandidatesPage = () => {
   const navigate = useNavigate();
   const [filterRole, setFilterRole] = useState<string>('ALL');
   const [candidates, setCandidates] = useState<CandidateApplication[]>(MOCK_CANDIDATES);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateApplication | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'analysis' | 'transcript'>('overview');
-  
-  // AI State
-  const [aiRecommendation, setAiRecommendation] = useState<string | null>(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'profile' | 'examination' | 'transcript'>('examination'); // Default to examination for demo
 
   // Derive unique roles from active jobs for the filter bar
   const jobRoles = ['ALL', ...Array.from(new Set(MOCK_RECRUITER_JOBS.map(j => j.title)))];
@@ -25,8 +20,7 @@ export const RecruiterCandidatesPage = () => {
 
   const handleCandidateSelect = (candidate: CandidateApplication) => {
     setSelectedCandidate(candidate);
-    setActiveTab('overview');
-    setAiRecommendation(null); // Reset AI state when switching candidates
+    setActiveTab('examination'); // Default to examination based on prompt context
   };
 
   const handleStatusUpdate = (id: string, newStatus: CandidateApplication['status']) => {
@@ -36,44 +30,10 @@ export const RecruiterCandidatesPage = () => {
     }
   };
 
-  const generateHiringRecommendation = async () => {
-    if (!selectedCandidate) return;
-    setIsAiLoading(true);
-    setAiRecommendation(''); // Clear previous
-
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      
-      const prompt = `
-        Role: Senior Tech Recruiter
-        Task: Analyze the following candidate and provide a hiring recommendation.
-        
-        Candidate Profile:
-        Name: ${selectedCandidate.candidateName}
-        Role Applied: ${selectedCandidate.role}
-        Scores: Overall ${selectedCandidate.scores?.overall}/10 (Tech: ${selectedCandidate.scores?.technical}, Comm: ${selectedCandidate.scores?.communication})
-        Resume Match: ${selectedCandidate.resumeAnalysis?.matchScore}%
-        Key Skills Found: ${selectedCandidate.resumeAnalysis?.skillsFound.join(', ')}
-        Transcript Snippets: ${JSON.stringify(selectedCandidate.transcript?.slice(0, 2))}
-        
-        Output Requirements:
-        1. "Executive Summary": 3-4 lines summarizing the candidate's fit, strengths, and any red flags.
-        2. "Why Hire Me": A persuasive paragraph written from the perspective of why this candidate is the best choice (or why they might not be if scores are low).
-        
-        Format the output clearly with bold headings.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt
-      });
-
-      setAiRecommendation(response.text);
-    } catch (error) {
-      console.error("AI Generation Error:", error);
-      setAiRecommendation("Unable to generate recommendation at this time. Please try again later.");
-    } finally {
-      setIsAiLoading(false);
+  const handleRequestInterview = () => {
+    if (selectedCandidate) {
+      alert(`Interview request sent to ${selectedCandidate.email}`);
+      handleStatusUpdate(selectedCandidate.id, 'Interviewing');
     }
   };
 
@@ -90,7 +50,7 @@ export const RecruiterCandidatesPage = () => {
 
   return (
     <div className="flex h-[calc(100vh-6rem)] gap-6">
-      {/* Main Content - Candidate List */}
+      {/* Left Column: Candidate List */}
       <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${selectedCandidate ? 'w-full lg:w-2/3 hidden lg:flex' : 'w-full'}`}>
         
         <div className="mb-6">
@@ -116,13 +76,6 @@ export const RecruiterCandidatesPage = () => {
                   {role}
                 </button>
               ))}
-              <button 
-                onClick={() => navigate('/recruiter/jobs')}
-                className="whitespace-nowrap px-3 py-2 rounded-full text-sm font-medium bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 hover:bg-blue-100 dark:hover:bg-blue-900/40 flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Add
-              </button>
             </div>
           </div>
         </div>
@@ -175,8 +128,8 @@ export const RecruiterCandidatesPage = () => {
                           <span className={`font-bold ${candidate.scores.overall >= 8 ? 'text-green-600' : candidate.scores.overall >= 6 ? 'text-amber-600' : 'text-red-600'}`}>
                             {candidate.scores.overall}
                           </span>
-                          {candidate.flags && candidate.flags.severity === 'High' && (
-                            <AlertTriangle className="w-4 h-4 text-red-500" />
+                          {candidate.flags && candidate.flags.count > 0 && (
+                            <AlertTriangle className="w-4 h-4 text-amber-500" />
                           )}
                         </div>
                       ) : (
@@ -199,170 +152,301 @@ export const RecruiterCandidatesPage = () => {
         </div>
       </div>
 
-      {/* Detail Slide-over / Panel */}
+      {/* Right Column: Candidate Details Panel */}
       {selectedCandidate && (
-        <div className="w-full lg:w-[550px] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-300 fixed inset-0 lg:static z-40 lg:z-auto">
-          {/* Header */}
-          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-start bg-slate-50/50 dark:bg-slate-800/50 flex-shrink-0">
-            <div className="flex gap-4">
-              <img src={selectedCandidate.candidateAvatar} alt="" className="w-14 h-14 rounded-full border-2 border-white dark:border-slate-700 shadow-sm" />
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedCandidate.candidateName}</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{selectedCandidate.role}</p>
-                <div className="flex items-center gap-1 mt-1 text-xs text-blue-600 dark:text-blue-400">
-                  <Mail className="w-3 h-3" />
-                  {selectedCandidate.email || 'email@example.com'}
+        <div className="w-full lg:w-[600px] bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-300 fixed inset-0 lg:static z-40 lg:z-auto">
+          
+          {/* 1. Header & Actions */}
+          <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-4 bg-white dark:bg-slate-900 flex-shrink-0">
+            <div className="flex justify-between items-start">
+              <div className="flex gap-4">
+                <img src={selectedCandidate.candidateAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-white dark:border-slate-700 shadow-sm object-cover" />
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedCandidate.candidateName}</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{selectedCandidate.role}</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <a href={`mailto:${selectedCandidate.email}`} className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                      <Mail className="w-3.5 h-3.5" />
+                      {selectedCandidate.email || 'Email not provided'}
+                    </a>
+                  </div>
                 </div>
               </div>
+              <button 
+                onClick={() => setSelectedCandidate(null)}
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                title="Close"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
             </div>
-            <button 
-              onClick={() => setSelectedCandidate(null)}
-              className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"
+
+            <div className="flex items-center gap-3 mt-2">
+              <div className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-2 ${getStatusColor(selectedCandidate.status).replace('bg-', 'bg-opacity-10 border-')}`}>
+                {selectedCandidate.status === 'Completed' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                {selectedCandidate.status}
+              </div>
+              <div className="flex-1"></div>
+              {/* Request Feature */}
+              <button 
+                onClick={handleRequestInterview}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+              >
+                <Send className="w-4 h-4" />
+                Request Interview
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Tabs Navigation */}
+          <div className="flex border-b border-slate-200 dark:border-slate-800 px-6">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'profile' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
             >
-              <X className="w-5 h-5 text-slate-500" />
+              Profile & Resume
+            </button>
+            <button
+              onClick={() => setActiveTab('examination')}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'examination' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+            >
+              Examination
+            </button>
+            <button
+              onClick={() => setActiveTab('transcript')}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'transcript' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400'}`}
+            >
+              Transcript
             </button>
           </div>
 
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* 3. Content Sections */}
+          <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-950/50">
             
-            {/* Status Banner */}
-            <div className={`p-4 rounded-lg flex items-center justify-between ${getStatusColor(selectedCandidate.status)}`}>
-               <span className="font-medium text-sm">Current Status</span>
-               <span className="font-bold text-sm uppercase tracking-wide">{selectedCandidate.status}</span>
-            </div>
-
-            {/* AI Recommendation Section */}
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-5 border border-indigo-100 dark:border-indigo-800/50 relative overflow-hidden">
-               <div className="absolute top-0 right-0 p-4 opacity-10">
-                 <Sparkles className="w-24 h-24 text-indigo-600" />
-               </div>
-               
-               <div className="relative z-10">
-                 <div className="flex items-center justify-between mb-3">
-                   <h3 className="font-bold text-indigo-900 dark:text-indigo-100 flex items-center gap-2">
-                     <Bot className="w-5 h-5" /> AI Hiring Recommendation
+            {/* SECTION 1: Profile & Resume */}
+            {activeTab === 'profile' && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                   <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                     <FileText className="w-4 h-4" /> Resume Analysis
                    </h3>
-                   {!aiRecommendation && !isAiLoading && (
-                     <button 
-                      onClick={generateHiringRecommendation}
-                      className="text-xs bg-white dark:bg-indigo-700 text-indigo-600 dark:text-white px-3 py-1.5 rounded-full font-bold shadow-sm hover:shadow-md transition-all flex items-center gap-1"
-                     >
-                       <Sparkles className="w-3 h-3" /> Generate Analysis
-                     </button>
-                   )}
-                 </div>
-
-                 {isAiLoading && (
-                    <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-300 text-sm animate-pulse py-2">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Analyzing candidate profile...
-                    </div>
-                 )}
-
-                 {aiRecommendation && (
-                   <div className="text-sm text-indigo-800 dark:text-indigo-200 whitespace-pre-line leading-relaxed animate-in fade-in duration-500 bg-white/50 dark:bg-black/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                     {aiRecommendation}
+                   
+                   <div className="flex items-center gap-6 mb-6">
+                      <div className="flex-1">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Match Score</span>
+                          <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{selectedCandidate.resumeAnalysis?.matchScore || 0}%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                          <div className="bg-blue-600 h-full rounded-full" style={{ width: `${selectedCandidate.resumeAnalysis?.matchScore || 0}%` }}></div>
+                        </div>
+                      </div>
                    </div>
-                 )}
-                 
-                 {!aiRecommendation && !isAiLoading && (
-                   <p className="text-sm text-indigo-700 dark:text-indigo-300 opacity-80">
-                     Click to generate a real-time summary and "Why Hire Me" argument based on interview data.
-                   </p>
-                 )}
-               </div>
-            </div>
 
-            {/* Interview Result Section */}
-            {selectedCandidate.scores && (
-              <div>
-                 <div className="flex items-center gap-3 mb-3">
-                   <h3 className="font-bold text-slate-900 dark:text-white">Interview Result</h3>
-                   {selectedCandidate.flags && selectedCandidate.flags.count > 0 && (
-                     <span className="text-xs font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full flex items-center gap-1 border border-red-200 dark:border-red-900/50">
-                       <AlertTriangle className="w-3 h-3" />
-                       {selectedCandidate.flags.count} Flags Detected
-                     </span>
-                   )}
-                 </div>
-                 
-                 <div className="flex flex-col sm:flex-row gap-4">
-                    {/* Score Box */}
-                    <div className="w-full sm:w-1/3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center p-6">
-                       <div className="text-4xl font-extrabold text-slate-900 dark:text-white mb-1">{selectedCandidate.scores.overall}</div>
-                       <div className="text-xs text-slate-500 uppercase font-bold tracking-wider">Overall</div>
-                    </div>
+                   <div className="space-y-4">
+                     <div>
+                       <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2">Skills Found</p>
+                       <div className="flex flex-wrap gap-2">
+                         {selectedCandidate.resumeAnalysis?.skillsFound.map(skill => (
+                           <span key={skill} className="px-2.5 py-1 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 text-xs font-medium rounded-md border border-green-100 dark:border-green-900/30">
+                             {skill}
+                           </span>
+                         ))}
+                       </div>
+                     </div>
+                     
+                     {selectedCandidate.resumeAnalysis?.skillsMissing && selectedCandidate.resumeAnalysis.skillsMissing.length > 0 && (
+                       <div>
+                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2">Skills Missing</p>
+                         <div className="flex flex-wrap gap-2">
+                           {selectedCandidate.resumeAnalysis?.skillsMissing.map(skill => (
+                             <span key={skill} className="px-2.5 py-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700">
+                               {skill}
+                             </span>
+                           ))}
+                         </div>
+                       </div>
+                     )}
 
-                    {/* Progress Bars */}
-                    <div className="flex-1 space-y-5 py-2">
-                       <div>
-                          <div className="flex justify-between text-sm mb-1.5">
-                             <span className="text-slate-600 dark:text-slate-400 font-medium">Technical</span>
-                             <span className="font-bold text-slate-900 dark:text-white">{selectedCandidate.scores.technical}</span>
-                          </div>
-                          <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                             <div className="bg-blue-600 h-full rounded-full" style={{width: `${selectedCandidate.scores.technical * 10}%`}}></div>
-                          </div>
-                       </div>
-                       <div>
-                          <div className="flex justify-between text-sm mb-1.5">
-                             <span className="text-slate-600 dark:text-slate-400 font-medium">Communication</span>
-                             <span className="font-bold text-slate-900 dark:text-white">{selectedCandidate.scores.communication}</span>
-                          </div>
-                          <div className="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                             <div className="bg-green-500 h-full rounded-full" style={{width: `${selectedCandidate.scores.communication * 10}%`}}></div>
-                          </div>
-                       </div>
-                    </div>
-                 </div>
+                     <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2">Experience Summary</p>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                          {selectedCandidate.resumeAnalysis?.experienceMatch || "No detailed experience analysis available."}
+                        </p>
+                     </div>
+                   </div>
+
+                   <div className="mt-6">
+                     <button className="flex items-center gap-2 text-sm text-blue-600 font-medium hover:underline">
+                       <Paperclip className="w-4 h-4" />
+                       Download Resume PDF
+                     </button>
+                   </div>
+                </div>
               </div>
             )}
 
-            {/* Session Recording */}
-            {selectedCandidate.status !== 'New' && selectedCandidate.status !== 'Interviewing' && (
-              <div>
-                <h3 className="font-bold text-slate-900 dark:text-white mb-3">Session Recording</h3>
-                <div className="bg-slate-900 rounded-xl aspect-video relative group cursor-pointer overflow-hidden shadow-md">
-                   <img src="https://picsum.photos/800/450" alt="Thumbnail" className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity" />
-                   <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg">
-                         <Play className="w-6 h-6 text-white fill-current ml-1" />
+            {/* SECTION 2: Examination Details */}
+            {activeTab === 'examination' && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                {selectedCandidate.scores ? (
+                  <>
+                    {/* Score Overview Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       {/* Overall Score */}
+                       <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center justify-center min-h-[140px]">
+                          <div className="text-5xl font-extrabold text-slate-900 dark:text-white mb-2">{selectedCandidate.scores.overall}</div>
+                          <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">Overall Score</div>
+                       </div>
+                       
+                       {/* Skill Breakdown */}
+                       <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-center gap-6 min-h-[140px]">
+                          <div>
+                            <div className="flex justify-between text-sm mb-2">
+                              <span className="text-slate-600 dark:text-slate-400 font-medium">Technical</span>
+                              <span className="font-bold text-slate-900 dark:text-white">{selectedCandidate.scores.technical}</span>
+                            </div>
+                            <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-blue-600 rounded-full" style={{ width: `${selectedCandidate.scores.technical * 10}%` }}></div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-sm mb-2">
+                              <span className="text-slate-600 dark:text-slate-400 font-medium">Behavioral</span>
+                              <span className="font-bold text-slate-900 dark:text-white">{selectedCandidate.scores.behavioral}</span>
+                            </div>
+                            <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-purple-600 rounded-full" style={{ width: `${selectedCandidate.scores.behavioral * 10}%` }}></div>
+                            </div>
+                          </div>
+                       </div>
+                    </div>
+
+                    {/* AI Summary Section */}
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                       <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                         <Sparkles className="w-4 h-4 text-purple-600" /> AI Examination Summary
+                       </h3>
+                       <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed mb-6">
+                         {selectedCandidate.aiAnalysis?.summary || "No automated summary available for this session."}
+                       </p>
+                       
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         {/* Strengths */}
+                         <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-lg border border-green-100 dark:border-green-900/20">
+                           <h4 className="text-xs font-bold text-green-800 dark:text-green-400 uppercase mb-3">Strengths</h4>
+                           <ul className="space-y-2">
+                             {selectedCandidate.aiAnalysis?.strengths.map((s, i) => (
+                               <li key={i} className="flex items-start gap-2 text-xs text-green-700 dark:text-green-300">
+                                 <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                 <span className="leading-snug">{s}</span>
+                               </li>
+                             ))}
+                           </ul>
+                         </div>
+                         {/* Weaknesses */}
+                         <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-100 dark:border-red-900/20">
+                           <h4 className="text-xs font-bold text-red-800 dark:text-red-400 uppercase mb-3">Weaknesses</h4>
+                           <ul className="space-y-2">
+                             {selectedCandidate.aiAnalysis?.weaknesses.map((w, i) => (
+                               <li key={i} className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
+                                 <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                                 <span className="leading-snug">{w}</span>
+                               </li>
+                             ))}
+                           </ul>
+                         </div>
+                       </div>
+                    </div>
+
+                    {/* Suspicious Activity */}
+                    {selectedCandidate.flags && selectedCandidate.flags.count > 0 && (
+                      <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl p-4 flex items-start gap-3">
+                         <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                         <div>
+                           <h4 className="text-sm font-bold text-amber-900 dark:text-amber-400">Suspicious Activity Detected</h4>
+                           <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
+                             {selectedCandidate.flags.count} incidents recorded. Potential academic dishonesty detected during the session.
+                           </p>
+                         </div>
                       </div>
-                   </div>
-                   <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded font-medium">
-                     45:20
-                   </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 border-dashed">
+                    <Clock className="w-8 h-8 mb-2 opacity-50" />
+                    <p>Examination not yet completed.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SECTION 3: Transcript */}
+            {activeTab === 'transcript' && (
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden animate-in fade-in duration-300">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" /> Interview Log
+                  </h3>
+                </div>
+                <div className="p-4 space-y-6">
+                  {selectedCandidate.transcript && selectedCandidate.transcript.length > 0 ? (
+                    selectedCandidate.transcript.map((item, idx) => (
+                      <div key={idx} className="space-y-3">
+                        <div className="flex gap-3">
+                           <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs flex-shrink-0">
+                             AI
+                           </div>
+                           <div className="flex-1">
+                             <p className="text-sm font-medium text-slate-900 dark:text-white">{item.question}</p>
+                           </div>
+                           <span className="text-xs text-slate-400">{item.timestamp}</span>
+                        </div>
+                        <div className="flex gap-3">
+                           <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 text-xs flex-shrink-0">
+                             <User className="w-4 h-4" />
+                           </div>
+                           <div className="flex-1 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg rounded-tl-none">
+                             <p className="text-sm text-slate-700 dark:text-slate-300">{item.answer}</p>
+                             <div className="mt-2 flex gap-2">
+                               <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                                 item.sentiment === 'Positive' ? 'bg-green-50 text-green-700 border-green-100' : 
+                                 item.sentiment === 'Negative' ? 'bg-red-50 text-red-700 border-red-100' : 
+                                 'bg-slate-100 text-slate-600 border-slate-200'
+                               }`}>
+                                 {item.sentiment} Sentiment
+                               </span>
+                             </div>
+                           </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12 text-slate-400 text-sm">
+                      No transcript available for this session.
+                    </div>
+                  )}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Action Footer */}
-          <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0">
-             <div className="grid grid-cols-3 gap-4">
-                <button 
-                  onClick={() => handleStatusUpdate(selectedCandidate.id, 'Rejected')}
-                  className="flex flex-col items-center justify-center p-4 rounded-xl border border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-900/10 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 transition-all hover:scale-[1.02]"
-                >
-                   <XCircle className="w-6 h-6 mb-1.5" />
-                   <span className="text-sm font-bold">Reject</span>
-                </button>
-                <button 
-                  onClick={() => handleStatusUpdate(selectedCandidate.id, 'On Hold')}
-                  className="flex flex-col items-center justify-center p-4 rounded-xl border border-amber-100 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-all hover:scale-[1.02]"
-                >
-                   <Clock className="w-6 h-6 mb-1.5" />
-                   <span className="text-sm font-bold">Hold</span>
-                </button>
-                <button 
-                  onClick={() => handleStatusUpdate(selectedCandidate.id, 'Offer')}
-                  className="flex flex-col items-center justify-center p-4 rounded-xl border border-green-100 dark:border-green-900/30 bg-green-50 dark:bg-green-900/10 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/20 transition-all hover:scale-[1.02]"
-                >
-                   <CheckCircle2 className="w-6 h-6 mb-1.5" />
-                   <span className="text-sm font-bold">Accept</span>
-                </button>
-             </div>
+          {/* Bottom Actions */}
+          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex-shrink-0 flex justify-end gap-3">
+            <button 
+              onClick={() => handleStatusUpdate(selectedCandidate.id, 'Rejected')}
+              className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-sm font-medium transition-colors"
+            >
+              Reject
+            </button>
+            <button 
+              onClick={() => handleStatusUpdate(selectedCandidate.id, 'Offer')}
+              className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 rounded-lg text-sm font-medium transition-colors shadow-sm"
+            >
+              Make Offer
+            </button>
           </div>
+
         </div>
       )}
 
