@@ -1,0 +1,8 @@
+{
+  "name": "Copy of InterviewExpert Candidate Portal",
+  "description": "A candidate-facing dashboard for the InterviewExpert AI interview platform. Features include interview scheduling, history tracking, and detailed AI-generated performance reports with behavioral analysis.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
