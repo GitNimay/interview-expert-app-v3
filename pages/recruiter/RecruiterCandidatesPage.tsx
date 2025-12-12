@@ -1,32 +1,44 @@
 import React, { useState } from 'react';
 import { Search, Filter, X, CheckCircle2, XCircle, Clock, Play, AlertTriangle, ChevronRight, Mail, FileText, Sparkles, User, MessageSquare, Send, Paperclip } from 'lucide-react';
-import { MOCK_CANDIDATES, MOCK_RECRUITER_JOBS, CandidateApplication } from '../../services/recruiterMockData';
+import { useCollection } from '../../hooks/useFirestore';
+import { where, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export const RecruiterCandidatesPage = () => {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
+  
+  // Real-time Data
+  const { data: candidates } = useCollection('applications', where('recruiterId', '==', userProfile?.uid || ''));
+  const { data: jobs } = useCollection('jobs', where('recruiterId', '==', userProfile?.uid || ''));
+
   const [filterRole, setFilterRole] = useState<string>('ALL');
-  const [candidates, setCandidates] = useState<CandidateApplication[]>(MOCK_CANDIDATES);
-  const [selectedCandidate, setSelectedCandidate] = useState<CandidateApplication | null>(null);
-  const [activeTab, setActiveTab] = useState<'profile' | 'examination' | 'transcript'>('examination'); // Default to examination for demo
+  const [selectedCandidate, setSelectedCandidate] = useState<any | null>(null);
+  const [activeTab, setActiveTab] = useState<'profile' | 'examination' | 'transcript'>('examination');
 
-  // Derive unique roles from active jobs for the filter bar
-  const jobRoles = ['ALL', ...Array.from(new Set(MOCK_RECRUITER_JOBS.map(j => j.title)))];
+  // Derive unique roles
+  const jobRoles = ['ALL', ...Array.from(new Set(jobs.map((j: any) => j.title)))];
 
-  const filteredCandidates = candidates.filter(c => {
+  const filteredCandidates = candidates.filter((c: any) => {
     if (filterRole === 'ALL') return true;
     return c.role === filterRole;
   });
 
-  const handleCandidateSelect = (candidate: CandidateApplication) => {
+  const handleCandidateSelect = (candidate: any) => {
     setSelectedCandidate(candidate);
-    setActiveTab('examination'); // Default to examination based on prompt context
+    setActiveTab('examination');
   };
 
-  const handleStatusUpdate = (id: string, newStatus: CandidateApplication['status']) => {
-    setCandidates(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
-    if (selectedCandidate && selectedCandidate.id === id) {
-      setSelectedCandidate(prev => prev ? { ...prev, status: newStatus } : null);
+  const handleStatusUpdate = async (id: string, newStatus: string) => {
+    try {
+      await updateDoc(doc(db, 'applications', id), { status: newStatus });
+      if (selectedCandidate && selectedCandidate.id === id) {
+        setSelectedCandidate((prev: any) => prev ? { ...prev, status: newStatus } : null);
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
     }
   };
 
@@ -94,60 +106,63 @@ export const RecruiterCandidatesPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {filteredCandidates.map((candidate) => (
-                  <tr 
-                    key={candidate.id} 
-                    onClick={() => handleCandidateSelect(candidate)}
-                    className={`
-                      cursor-pointer transition-colors
-                      ${selectedCandidate?.id === candidate.id 
-                        ? 'bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-600' 
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border-l-4 border-transparent'}
-                    `}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <img src={candidate.candidateAvatar} alt="" className="w-10 h-10 rounded-full object-cover bg-slate-200" />
-                        <div>
-                          <div className="font-medium text-slate-900 dark:text-white">{candidate.candidateName}</div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">{candidate.appliedDate}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
-                      <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">{candidate.role}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(candidate.status)}`}>
-                        {candidate.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {candidate.scores ? (
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold ${candidate.scores.overall >= 8 ? 'text-green-600' : candidate.scores.overall >= 6 ? 'text-amber-600' : 'text-red-600'}`}>
-                            {candidate.scores.overall}
-                          </span>
-                          {candidate.flags && candidate.flags.count > 0 && (
-                            <AlertTriangle className="w-4 h-4 text-amber-500" />
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-sm">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                       <ChevronRight className="w-5 h-5 text-slate-400 inline-block" />
+                {filteredCandidates.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-12 text-center text-slate-500 dark:text-slate-400">
+                      No candidates found.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredCandidates.map((candidate: any) => (
+                    <tr 
+                      key={candidate.id} 
+                      onClick={() => handleCandidateSelect(candidate)}
+                      className={`
+                        cursor-pointer transition-colors
+                        ${selectedCandidate?.id === candidate.id 
+                          ? 'bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-600' 
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/50 border-l-4 border-transparent'}
+                      `}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <img src={candidate.candidateAvatar || `https://ui-avatars.com/api/?name=${candidate.candidateName}`} alt="" className="w-10 h-10 rounded-full object-cover bg-slate-200" />
+                          <div>
+                            <div className="font-medium text-slate-900 dark:text-white">{candidate.candidateName}</div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">{candidate.appliedDate}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap hidden md:table-cell">
+                        <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">{candidate.role}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(candidate.status)}`}>
+                          {candidate.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {candidate.scores ? (
+                          <div className="flex items-center gap-2">
+                            <span className={`font-bold ${candidate.scores.overall >= 8 ? 'text-green-600' : candidate.scores.overall >= 6 ? 'text-amber-600' : 'text-red-600'}`}>
+                              {candidate.scores.overall}
+                            </span>
+                            {candidate.flags && candidate.flags.count > 0 && (
+                              <AlertTriangle className="w-4 h-4 text-amber-500" />
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-sm">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                         <ChevronRight className="w-5 h-5 text-slate-400 inline-block" />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
-            {filteredCandidates.length === 0 && (
-              <div className="p-12 text-center text-slate-500 dark:text-slate-400">
-                No candidates found for this role.
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -160,7 +175,7 @@ export const RecruiterCandidatesPage = () => {
           <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-4 bg-white dark:bg-slate-900 flex-shrink-0">
             <div className="flex justify-between items-start">
               <div className="flex gap-4">
-                <img src={selectedCandidate.candidateAvatar} alt="" className="w-16 h-16 rounded-full border-2 border-white dark:border-slate-700 shadow-sm object-cover" />
+                <img src={selectedCandidate.candidateAvatar || `https://ui-avatars.com/api/?name=${selectedCandidate.candidateName}`} alt="" className="w-16 h-16 rounded-full border-2 border-white dark:border-slate-700 shadow-sm object-cover" />
                 <div>
                   <h2 className="text-xl font-bold text-slate-900 dark:text-white">{selectedCandidate.candidateName}</h2>
                   <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{selectedCandidate.role}</p>
@@ -247,7 +262,7 @@ export const RecruiterCandidatesPage = () => {
                      <div>
                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2">Skills Found</p>
                        <div className="flex flex-wrap gap-2">
-                         {selectedCandidate.resumeAnalysis?.skillsFound.map(skill => (
+                         {selectedCandidate.resumeAnalysis?.skillsFound?.map((skill: string) => (
                            <span key={skill} className="px-2.5 py-1 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 text-xs font-medium rounded-md border border-green-100 dark:border-green-900/30">
                              {skill}
                            </span>
@@ -259,7 +274,7 @@ export const RecruiterCandidatesPage = () => {
                        <div>
                          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-2">Skills Missing</p>
                          <div className="flex flex-wrap gap-2">
-                           {selectedCandidate.resumeAnalysis?.skillsMissing.map(skill => (
+                           {selectedCandidate.resumeAnalysis?.skillsMissing.map((skill: string) => (
                              <span key={skill} className="px-2.5 py-1 bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 text-xs font-medium rounded-md border border-slate-200 dark:border-slate-700">
                                {skill}
                              </span>
@@ -274,13 +289,6 @@ export const RecruiterCandidatesPage = () => {
                           {selectedCandidate.resumeAnalysis?.experienceMatch || "No detailed experience analysis available."}
                         </p>
                      </div>
-                   </div>
-
-                   <div className="mt-6">
-                     <button className="flex items-center gap-2 text-sm text-blue-600 font-medium hover:underline">
-                       <Paperclip className="w-4 h-4" />
-                       Download Resume PDF
-                     </button>
                    </div>
                 </div>
               </div>
@@ -336,7 +344,7 @@ export const RecruiterCandidatesPage = () => {
                          <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-lg border border-green-100 dark:border-green-900/20">
                            <h4 className="text-xs font-bold text-green-800 dark:text-green-400 uppercase mb-3">Strengths</h4>
                            <ul className="space-y-2">
-                             {selectedCandidate.aiAnalysis?.strengths.map((s, i) => (
+                             {selectedCandidate.aiAnalysis?.strengths.map((s: string, i: number) => (
                                <li key={i} className="flex items-start gap-2 text-xs text-green-700 dark:text-green-300">
                                  <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                                  <span className="leading-snug">{s}</span>
@@ -348,7 +356,7 @@ export const RecruiterCandidatesPage = () => {
                          <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-100 dark:border-red-900/20">
                            <h4 className="text-xs font-bold text-red-800 dark:text-red-400 uppercase mb-3">Weaknesses</h4>
                            <ul className="space-y-2">
-                             {selectedCandidate.aiAnalysis?.weaknesses.map((w, i) => (
+                             {selectedCandidate.aiAnalysis?.weaknesses.map((w: string, i: number) => (
                                <li key={i} className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
                                  <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                                  <span className="leading-snug">{w}</span>
@@ -358,19 +366,6 @@ export const RecruiterCandidatesPage = () => {
                          </div>
                        </div>
                     </div>
-
-                    {/* Suspicious Activity */}
-                    {selectedCandidate.flags && selectedCandidate.flags.count > 0 && (
-                      <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl p-4 flex items-start gap-3">
-                         <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                         <div>
-                           <h4 className="text-sm font-bold text-amber-900 dark:text-amber-400">Suspicious Activity Detected</h4>
-                           <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
-                             {selectedCandidate.flags.count} incidents recorded. Potential academic dishonesty detected during the session.
-                           </p>
-                         </div>
-                      </div>
-                    )}
                   </>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-64 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 border-dashed">
@@ -391,7 +386,7 @@ export const RecruiterCandidatesPage = () => {
                 </div>
                 <div className="p-4 space-y-6">
                   {selectedCandidate.transcript && selectedCandidate.transcript.length > 0 ? (
-                    selectedCandidate.transcript.map((item, idx) => (
+                    selectedCandidate.transcript.map((item: any, idx: number) => (
                       <div key={idx} className="space-y-3">
                         <div className="flex gap-3">
                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-xs flex-shrink-0">

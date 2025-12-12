@@ -1,14 +1,22 @@
-import React, { useState } from 'react';
-import { MOCK_REQUESTS, CandidateRequest } from '../../services/recruiterMockData';
-import { Check, X, Clock, MessageSquare } from 'lucide-react';
+import React from 'react';
+import { Check, X, Clock, MessageSquare, AlertCircle } from 'lucide-react';
+import { useCollection } from '../../hooks/useFirestore';
+import { where, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const RecruiterRequestsPage = () => {
-  const [requests, setRequests] = useState<CandidateRequest[]>(MOCK_REQUESTS);
+  const { userProfile } = useAuth();
+  
+  // Real-time: Fetch 'interview_requests' collection or filtered applications
+  const { data: requests } = useCollection('interview_requests', where('recruiterId', '==', userProfile?.uid || ''));
 
-  const handleAction = (id: string, action: 'Accepted' | 'Declined') => {
-    setRequests(prev => prev.map(req => 
-      req.id === id ? { ...req, status: action } : req
-    ));
+  const handleAction = async (id: string, action: 'Accepted' | 'Declined') => {
+    try {
+      await updateDoc(doc(db, 'interview_requests', id), { status: action });
+    } catch (error) {
+      console.error("Error updating request:", error);
+    }
   };
 
   return (
@@ -24,10 +32,10 @@ export const RecruiterRequestsPage = () => {
             <p className="text-slate-500 dark:text-slate-400">No pending requests found.</p>
           </div>
         ) : (
-          requests.map((request) => (
+          requests.map((request: any) => (
             <div key={request.id} className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-6">
               <div className="flex-1 flex gap-4">
-                <img src={request.candidateAvatar} alt="" className="w-12 h-12 rounded-full object-cover bg-slate-200" />
+                <img src={request.candidateAvatar || `https://ui-avatars.com/api/?name=${request.candidateName}`} alt="" className="w-12 h-12 rounded-full object-cover bg-slate-200" />
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">{request.candidateName}</h3>
@@ -40,10 +48,12 @@ export const RecruiterRequestsPage = () => {
                     </span>
                   </div>
                   <p className="text-sm text-slate-600 dark:text-slate-400 font-medium mb-2">{request.role}</p>
-                  <div className="flex items-start gap-2 text-sm text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg">
-                    <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <p>"{request.message}"</p>
-                  </div>
+                  {request.message && (
+                    <div className="flex items-start gap-2 text-sm text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg">
+                      <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <p>"{request.message}"</p>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1 text-xs text-slate-400 mt-2">
                     <Clock className="w-3 h-3" /> Requested on {request.requestDate}
                   </div>

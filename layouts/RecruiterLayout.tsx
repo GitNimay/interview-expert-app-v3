@@ -1,8 +1,11 @@
 import React from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, Briefcase, Settings, LogOut, Menu, X, Bell, Inbox } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const { userProfile, logout } = useAuth();
+  
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/recruiter' },
     { icon: Inbox, label: 'Requests', path: '/recruiter/requests' },
@@ -66,17 +69,17 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
           <div className="p-4 border-t border-slate-800 flex-shrink-0">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
-                HR
+                {userProfile?.name?.charAt(0) || 'R'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">Hiring Manager</p>
-                <p className="text-xs text-slate-400 truncate">TechFlow Systems</p>
+                <p className="text-sm font-medium text-white truncate">{userProfile?.name || 'Recruiter'}</p>
+                <p className="text-xs text-slate-400 truncate">{userProfile?.email}</p>
               </div>
             </div>
-            <NavLink to="/" className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium text-slate-400 rounded-lg hover:bg-slate-800 transition-colors">
+            <button onClick={logout} className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium text-slate-400 rounded-lg hover:bg-slate-800 transition-colors">
               <LogOut className="w-4 h-4" />
-              Switch Role
-            </NavLink>
+              Sign Out
+            </button>
           </div>
         </div>
       </div>
@@ -88,7 +91,6 @@ export const RecruiterLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = React.useState(false);
   const location = useLocation();
 
-  // Close sidebar on route change
   React.useEffect(() => {
     setSidebarOpen(false);
   }, [location]);

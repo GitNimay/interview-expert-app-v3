@@ -1,9 +1,11 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Video, Settings, LogOut, Menu, X, Briefcase, CalendarCheck, Bot } from 'lucide-react';
-import { MOCK_USER } from '../services/mockData';
+import { useAuth } from '../contexts/AuthContext';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const { userProfile, logout } = useAuth();
+
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/candidate' },
     { icon: Bot, label: 'AI Assistant', path: '/candidate/ai-assistant' },
@@ -67,17 +69,15 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
           {/* User Profile */}
           <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex-shrink-0">
             <div className="flex items-center gap-3 mb-4">
-              <img 
-                src={MOCK_USER.avatarUrl} 
-                alt={MOCK_USER.name} 
-                className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
-              />
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold">
+                {userProfile?.name?.charAt(0) || 'C'}
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{MOCK_USER.name}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{MOCK_USER.email}</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{userProfile?.name || 'Candidate'}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{userProfile?.email}</p>
               </div>
             </div>
-            <button className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors">
+            <button onClick={logout} className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors">
               <LogOut className="w-4 h-4" />
               Sign Out
             </button>
@@ -92,7 +92,6 @@ export const Layout = () => {
   const [isSidebarOpen, setSidebarOpen] = React.useState(false);
   const location = useLocation();
 
-  // Close sidebar on route change
   React.useEffect(() => {
     setSidebarOpen(false);
   }, [location]);

@@ -24,11 +24,16 @@ export const LobbyPage = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  const handleStartSession = () => {
+    // Navigate to the active interview session
+    navigate(`/interview/${id}/session`);
+  };
+
   if (!interview) return <div>Interview not found</div>;
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="max-w-xl w-full bg-white rounded-2xl p-8 shadow-2xl">
+      <div className="max-w-xl w-full bg-white rounded-2xl p-8 shadow-2xl animate-in fade-in zoom-in duration-300">
         <h1 className="text-2xl font-bold text-slate-900 mb-2">System Check</h1>
         <p className="text-slate-500 mb-8">Let's ensure everything is ready for your interview with {interview.companyName}.</p>
 
@@ -73,7 +78,7 @@ export const LobbyPage = () => {
           </div>
         </div>
 
-        <div className="bg-blue-50 p-4 rounded-xl flex gap-3 text-sm text-blue-800 mb-8">
+        <div className="bg-blue-50 p-4 rounded-xl flex gap-3 text-sm text-blue-800 mb-8 border border-blue-100">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <p>
             This interview is monitored for behavior analysis. Please ensure you are in a quiet room and your face is clearly visible. Tab switching is logged.
@@ -81,6 +86,7 @@ export const LobbyPage = () => {
         </div>
 
         <button
+          onClick={handleStartSession}
           disabled={checking}
           className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
             checking 

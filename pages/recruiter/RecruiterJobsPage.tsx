@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { Plus, Search, Globe, Lock, MapPin, Users, MoreVertical, Send, X, Check } from 'lucide-react';
-import { MOCK_RECRUITER_JOBS, RecruiterJob } from '../../services/recruiterMockData';
+import { Plus, Search, Globe, Lock, MapPin, Users, MoreVertical, Send, X } from 'lucide-react';
+import { useCollection } from '../../hooks/useFirestore';
+import { db } from '../../lib/firebase';
+import { collection, addDoc, where } from 'firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const RecruiterJobsPage = () => {
-  const [jobs, setJobs] = useState<RecruiterJob[]>(MOCK_RECRUITER_JOBS);
+  const { userProfile } = useAuth();
+  const { data: jobs } = useCollection('jobs', where('recruiterId', '==', userProfile?.uid || ''));
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [inviteJob, setInviteJob] = useState<RecruiterJob | null>(null);
-  const [filter, setFilter] = useState<'ALL' | 'GLOBAL' | 'PRIVATE'>('ALL');
-
+  
   // Form States
-  const [newJob, setNewJob] = useState<Partial<RecruiterJob>>({
+  const [newJob, setNewJob] = useState({
     title: '',
     department: '',
     location: '',
@@ -18,42 +20,23 @@ export const RecruiterJobsPage = () => {
     description: ''
   });
 
-  const [inviteEmail, setInviteEmail] = useState('');
-
-  const handleCreateJob = (e: React.FormEvent) => {
+  const handleCreateJob = async (e: React.FormEvent) => {
     e.preventDefault();
-    const job: RecruiterJob = {
-      id: `rj-${Date.now()}`,
-      title: newJob.title!,
-      department: newJob.department || 'General',
-      location: newJob.location || 'Remote',
-      salaryRange: newJob.salaryRange || 'Competitive',
-      type: newJob.type as 'GLOBAL' | 'PRIVATE',
-      status: 'ACTIVE',
-      postedDate: new Date().toISOString().split('T')[0],
-      applicants: 0,
-      description: newJob.description || ''
-    };
-    setJobs([job, ...jobs]);
-    setIsCreateModalOpen(false);
-    setNewJob({ title: '', department: '', location: '', salaryRange: '', type: 'GLOBAL', description: '' });
+    try {
+      await addDoc(collection(db, 'jobs'), {
+        ...newJob,
+        recruiterId: userProfile?.uid,
+        companyName: userProfile?.companyName || 'Tech Company',
+        status: 'ACTIVE',
+        postedDate: new Date().toISOString().split('T')[0],
+        applicants: 0
+      });
+      setIsCreateModalOpen(false);
+      setNewJob({ title: '', department: '', location: '', salaryRange: '', type: 'GLOBAL', description: '' });
+    } catch (error) {
+      console.error("Error adding document: ", error);
+    }
   };
-
-  const handleSendInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteJob) return;
-    
-    // Simulate API call
-    alert(`Invitation sent to ${inviteEmail} for position: ${inviteJob.title}`);
-    setInviteJob(null);
-    setInviteEmail('');
-  };
-
-  const filteredJobs = jobs.filter(job => {
-    if (filter === 'GLOBAL') return job.type === 'GLOBAL';
-    if (filter === 'PRIVATE') return job.type === 'PRIVATE';
-    return true;
-  });
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -71,98 +54,50 @@ export const RecruiterJobsPage = () => {
         </button>
       </div>
 
-      {/* Filters and Search */}
-      <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row gap-4 justify-between items-center">
-        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-          {['ALL', 'GLOBAL', 'PRIVATE'].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f as any)}
-              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
-                filter === f 
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-              }`}
-            >
-              {f.charAt(0) + f.slice(1).toLowerCase()} Jobs
-            </button>
-          ))}
-        </div>
-        
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input 
-            type="text" 
-            placeholder="Search positions..." 
-            className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
-          />
-        </div>
-      </div>
-
       {/* Job List */}
       <div className="grid grid-cols-1 gap-4">
-        {filteredJobs.map((job) => (
-          <div key={job.id} className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 transition-all group">
-            <div className="flex flex-col md:flex-row justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">{job.title}</h3>
-                  <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                    job.type === 'GLOBAL' 
-                      ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/50' 
-                      : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50'
-                  }`}>
-                    {job.type === 'GLOBAL' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                    {job.type === 'GLOBAL' ? 'Global Post' : 'Private Invite'}
-                  </span>
-                  <span className="text-xs text-slate-400">Posted {job.postedDate}</span>
-                </div>
-                
-                <div className="flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400 mb-4">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {job.location}
+        {jobs.length === 0 ? (
+          <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 border-dashed">
+            <p className="text-slate-500">No jobs posted yet. Create your first job posting.</p>
+          </div>
+        ) : (
+          jobs.map((job: any) => (
+            <div key={job.id} className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 transition-all group">
+              <div className="flex flex-col md:flex-row justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white">{job.title}</h3>
+                    <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                      job.type === 'GLOBAL' 
+                        ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900/50' 
+                        : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50'
+                    }`}>
+                      {job.type === 'GLOBAL' ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                      {job.type === 'GLOBAL' ? 'Global Post' : 'Private Invite'}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="w-4 h-4" />
-                    {job.department}
-                  </div>
-                  <div>{job.salaryRange}</div>
-                </div>
-
-                <div className="flex items-center gap-6">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-slate-900 dark:text-white">{job.applicants}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">Applicants</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-slate-900 dark:text-white">
-                       {/* Mock stat */}
-                       {Math.floor(job.applicants * 0.4)}
+                  
+                  <div className="flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400 mb-4">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      {job.location}
                     </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">Interviewed</div>
+                    <div className="flex items-center gap-1">
+                      <Users className="w-4 h-4" />
+                      {job.department}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex flex-row md:flex-col justify-center items-end gap-3 border-t md:border-t-0 md:border-l border-slate-100 dark:border-slate-800 pt-4 md:pt-0 md:pl-6">
-                <button 
-                  onClick={() => setInviteJob(job)}
-                  className="w-full md:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-700 text-white text-sm font-medium rounded-lg hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors"
-                >
-                  <Send className="w-4 h-4" />
-                  Request Interview
-                </button>
-                <button className="w-full md:w-auto px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                  View Applicants
-                </button>
-                <button className="hidden md:block p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                   <MoreVertical className="w-5 h-5" />
-                </button>
+                <div className="flex flex-row md:flex-col justify-center items-end gap-3 pt-4 md:pt-0">
+                  <button className="w-full md:w-auto px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    View Applicants
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Create Job Modal */}
@@ -274,55 +209,6 @@ export const RecruiterJobsPage = () => {
                   className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-600/20"
                 >
                   Create Job Post
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Invite Candidate Modal */}
-      {inviteJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-slate-50 dark:bg-slate-800 p-6 border-b border-slate-100 dark:border-slate-700">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Request Interview</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Inviting candidate for <span className="font-medium text-slate-900 dark:text-white">{inviteJob.title}</span></p>
-            </div>
-            
-            <form onSubmit={handleSendInvite} className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Candidate Email Address</label>
-                <input 
-                  required
-                  type="email" 
-                  className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
-                  placeholder="candidate@example.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  autoFocus
-                />
-                <p className="text-xs text-slate-500 mt-2">
-                  {inviteJob.type === 'PRIVATE' 
-                    ? 'This is a private job. The candidate will receive a unique access link.'
-                    : 'The candidate will be invited to apply to this global listing.'}
-                </p>
-              </div>
-
-              <div className="flex gap-3">
-                <button 
-                  type="button"
-                  onClick={() => setInviteJob(null)}
-                  className="flex-1 px-4 py-2.5 text-slate-600 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl border border-transparent"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-4 py-2.5 bg-slate-900 dark:bg-blue-600 text-white font-medium rounded-xl hover:opacity-90 flex items-center justify-center gap-2"
-                >
-                  <Send className="w-4 h-4" />
-                  Send Request
                 </button>
               </div>
             </form>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Briefcase, ShieldCheck } from 'lucide-react';
+import { UserPlus, LogIn } from 'lucide-react';
 
 export const LandingPage = () => {
   const navigate = useNavigate();
@@ -12,50 +12,28 @@ export const LandingPage = () => {
           IE
         </div>
         <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-3">InterviewExpert</h1>
-        <p className="text-lg text-slate-500 dark:text-slate-400">Select your portal to continue</p>
+        <p className="text-lg text-slate-500 dark:text-slate-400">AI-Powered Interview Intelligence Platform</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full">
-        {/* Candidate */}
+      <div className="flex gap-4 max-w-md w-full">
         <button 
-          onClick={() => navigate('/candidate')}
-          className="group relative bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 shadow-sm hover:shadow-md transition-all text-left"
+          onClick={() => navigate('/login')}
+          className="flex-1 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-3 group"
         >
-          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center text-blue-600 dark:text-blue-400 mb-6 group-hover:scale-110 transition-transform">
-            <User className="w-6 h-6" />
+          <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform">
+            <LogIn className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Candidate</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Join interviews, practice with AI, and view your performance reports.
-          </p>
+          <span className="font-bold text-slate-900 dark:text-white">Log In</span>
         </button>
 
-        {/* Recruiter */}
         <button 
-          onClick={() => navigate('/recruiter')}
-          className="group relative bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 shadow-sm hover:shadow-md transition-all text-left"
+          onClick={() => navigate('/signup')}
+          className="flex-1 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 shadow-sm hover:shadow-md transition-all flex flex-col items-center gap-3 group"
         >
-          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-6 group-hover:scale-110 transition-transform">
-            <Briefcase className="w-6 h-6" />
+          <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform">
+            <UserPlus className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Recruiter</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Manage jobs, review AI-graded reports, and shortlist candidates.
-          </p>
-        </button>
-
-        {/* Admin */}
-        <button 
-          onClick={() => navigate('/admin')}
-          className="group relative bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-purple-500 dark:hover:border-purple-500 shadow-sm hover:shadow-md transition-all text-left"
-        >
-          <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-xl flex items-center justify-center text-purple-600 dark:text-purple-400 mb-6 group-hover:scale-110 transition-transform">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Admin</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            System configuration, user management, and platform analytics.
-          </p>
+          <span className="font-bold text-slate-900 dark:text-white">Sign Up</span>
         </button>
       </div>
     </div>
